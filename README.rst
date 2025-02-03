@@ -12,9 +12,9 @@
 
 Privacy-respecting, hackable `metasearch engine`_
 
-If you are looking for running instances, ready to use, then visit searx.space_.
-Otherwise jump to the user_, admin_ and developer_ handbooks you will find on
-our homepage_.
+Searx.space_ lists ready-to-use running instances.
+
+A user_, admin_ and developer_ handbook is available on the homepage_.
 
 |SearXNG install|
 |SearXNG homepage|
@@ -59,97 +59,72 @@ our homepage_.
 .. |commits| image:: https://img.shields.io/github/commit-activity/y/searxng/searxng?color=yellow&label=commits
    :target: https://github.com/searxng/searxng/commits/master
 
-.. |weblate| image:: https://weblate.bubu1.eu/widgets/searxng/-/searxng/svg-badge.svg
-   :target: https://weblate.bubu1.eu/projects/searxng/
+.. |weblate| image:: https://translate.codeberg.org/widgets/searxng/-/searxng/svg-badge.svg
+   :target: https://translate.codeberg.org/projects/searxng/
 
 
 Contact
 =======
 
-Come join us if you have questions or just want to chat about SearXNG.
-
-Matrix
-  `#searxng:matrix.org <https://matrix.to/#/#searxng:matrix.org>`_
+Ask questions or chat with the SearXNG community (this not a chatbot) on
 
 IRC
   `#searxng on libera.chat <https://web.libera.chat/?channel=#searxng>`_
   which is bridged to Matrix.
 
-
-Differences to searx
-====================
-
-SearXNG is a fork of `searx`_.  Here are some of the changes:
-
-.. _searx: https://github.com/searx/searx
-
-
-User experience
----------------
-
-- Huge update of the simple theme:
-
-  * usable on desktop, tablet and mobile
-  * light and dark versions (you can choose in the preferences)
-  * support right-to-left languages
-  * `see the screenshots <https://dev.searxng.org/screenshots.html>`_
-
-- the translations are up to date, you can contribute on `Weblate`_
-- the preferences page has been updated:
-
-  * you can see which engines are reliable or not
-  * engines are grouped inside each tab
-  * each engine has a description
-
-- thanks to the anonymous metrics, it is easier to report a bug of an engine and
-  thus engines get fixed more quickly
-
-  - if you don't want any metrics to be recorded, you can `disable them on the server
-    <https://docs.searxng.org/admin/engines/settings.html#general>`_
-
-- administrator can `block and/or replace the URLs in the search results
-  <https://github.com/searxng/searxng/blob/5c1c0817c3996c5670a545d05831d234d21e6217/searx/settings.yml#L191-L199>`_
+Matrix
+  `#searxng:matrix.org <https://matrix.to/#/#searxng:matrix.org>`_
 
 
 Setup
------
+=====
 
-- you don't need `Morty`_ to proxy the images even on a public instance
-- you don't need `Filtron`_ to block bots, we implemented the builtin `limiter`_
-- you get a well maintained `Docker image`_, now also built for ARM64 and ARM/v7 architectures
-- alternatively we have up to date installation scripts
+- A well maintained `Docker image`_, also built for ARM64 and ARM/v7
+  architectures.
+- Alternatively there are *up to date* `installation scripts`_.
+- For individual setup consult our detailed `Step by step`_ instructions.
+- To fine-tune your instance, take a look at the `Administrator documentation`_.
 
+.. _Administrator documentation: https://docs.searxng.org/admin/index.html
+.. _Step by step: https://docs.searxng.org/admin/installation-searxng.html
+.. _installation scripts: https://docs.searxng.org/admin/installation-scripts.html
 .. _Docker image: https://github.com/searxng/searxng-docker
-
-
-Contributing is easier
-----------------------
-
-- readable debug log
-- contributions to the themes are made easier, check out our `Development
-  Quickstart`_ guide
-- a lot of code cleanup and bug fixes
-- the dependencies are up to date
-
-.. _Morty: https://github.com/asciimoo/morty
-.. _Filtron: https://github.com/searxng/filtron
-.. _limiter: https://docs.searxng.org/src/searx.plugins.limiter.html
-.. _Weblate: https://weblate.bubu1.eu/projects/searxng/searxng/
-.. _Development Quickstart: https://docs.searxng.org/dev/quickstart.html
-
 
 Translations
 ============
 
-We need translators, suggestions are welcome at
-https://weblate.bubu1.eu/projects/searxng/searxng/
+.. _Weblate: https://translate.codeberg.org/projects/searxng/searxng/
 
-.. figure:: https://weblate.bubu1.eu/widgets/searxng/-/multi-auto.svg
-   :target: https://weblate.bubu1.eu/projects/searxng/
+Help translate SearXNG at `Weblate`_
+
+.. figure:: https://translate.codeberg.org/widgets/searxng/-/multi-auto.svg
+   :target: https://translate.codeberg.org/projects/searxng/
 
 
-Make a donation
-===============
+Contributing
+============
 
-You can support the SearXNG project by clicking on the donation page:
-https://docs.searxng.org/donate.html
+.. _development quickstart: https://docs.searxng.org/dev/quickstart.html
+.. _developer documentation: https://docs.searxng.org/dev/index.html
+
+Are you a developer?  Have a look at our `development quickstart`_ guide, it's
+very easy to contribute.  Additionally we have a `developer documentation`_.
+
+
+Codespaces
+==========
+
+You can contribute from your browser using `GitHub Codespaces`_:
+
+- Fork the repository
+- Click on the ``<> Code`` green button
+- Click on the ``Codespaces`` tab instead of ``Local``
+- Click on ``Create codespace on master``
+- VSCode is going to start in the browser
+- Wait for ``git pull && make install`` to appear and then disappear
+- You have `120 hours per month`_ (see also your `list of existing Codespaces`_)
+- You can start SearXNG using ``make run`` in the terminal or by pressing ``Ctrl+Shift+B``
+
+.. _GitHub Codespaces: https://docs.github.com/en/codespaces/overview
+.. _120 hours per month: https://github.com/settings/billing
+.. _list of existing Codespaces: https://github.com/codespaces

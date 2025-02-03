@@ -10,13 +10,15 @@ reST primer
    contributors to follow principles like KISS_ and readability_.
 
 We at SearXNG are using reStructuredText (aka reST_) markup for all kind of
-documentation, with the builders from the Sphinx_ project a HTML output is
-generated and deployed at :docs:`github.io <.>`.  For build prerequisites read
+documentation.  With the builders from the Sphinx_ project a HTML output is
+generated and deployed at docs.searxng.org_.  For build prerequisites read
 :ref:`docs build`.
 
-The source files of Searx's documentation are located at :origin:`docs`.  Sphinx
-assumes source files to be encoded in UTF-8 by defaul.  Run :ref:`make docs.live
-<make docs.live>` to build HTML while editing.
+.. _docs.searxng.org: https://docs.searxng.org/
+
+The source files of SearXNG's documentation are located at :origin:`docs`.
+Sphinx assumes source files to be encoded in UTF-8 by default.  Run :ref:`make
+docs.live <make docs.live>` to build HTML while editing.
 
 .. sidebar:: Further reading
 
@@ -35,7 +37,7 @@ assumes source files to be encoded in UTF-8 by defaul.  Run :ref:`make docs.live
    - DOT_, `Graphviz's dot`_, Graphviz_
 
 
-.. contents:: Contents
+.. contents::
    :depth: 3
    :local:
    :backlinks: entry
@@ -227,13 +229,13 @@ To refer anchors use the `ref role`_ markup:
 
 .. code:: reST
 
-   Visit chapter :ref:`reST anchor`.  Or set hyperlink text manualy :ref:`foo
+   Visit chapter :ref:`reST anchor`.  Or set hyperlink text manually :ref:`foo
    bar <reST anchor>`.
 
 .. admonition:: ``:ref:`` role
    :class: rst-example
 
-   Visist chapter :ref:`reST anchor`.  Or set hyperlink text manualy :ref:`foo
+   Visit chapter :ref:`reST anchor`.  Or set hyperlink text manually :ref:`foo
    bar <reST anchor>`.
 
 .. _reST ordinary ref:
@@ -290,7 +292,7 @@ content becomes smart.
    files & folders origin     :origin:`docs/dev/reST.rst`        ``:origin:`docs/dev/reST.rst```
    pull request               :pull:`4`                          ``:pull:`4```
    patch                      :patch:`af2cae6`                   ``:patch:`af2cae6```
-   PyPi package               :pypi:`searx`                      ``:pypi:`searx```
+   PyPi package               :pypi:`httpx`                      ``:pypi:`httpx```
    manual page man            :man:`bash`                        ``:man:`bash```
    intersphinx_
    --------------------------------------------------------------------------------------------------
@@ -494,8 +496,8 @@ Figures & Images
    is flexible.  To get best results in the generated output format, install
    ImageMagick_ and Graphviz_.
 
-Searx's sphinx setup includes: :ref:`linuxdoc:kfigure`.  Scaleable here means;
-scaleable in sense of the build process.  Normally in absence of a converter
+SearXNG's sphinx setup includes: :ref:`linuxdoc:kfigure`.  Scalable here means;
+scalable in sense of the build process.  Normally in absence of a converter
 tool, the build process will break.  From the authors POV it’s annoying to care
 about the build process when handling with images, especially since he has no
 access to the build process.  With :ref:`linuxdoc:kfigure` the build process
@@ -503,7 +505,7 @@ continues and scales output quality in dependence of installed image processors.
 
 If you want to add an image, you should use the ``kernel-figure`` (inheritance
 of :dudir:`figure`) and ``kernel-image`` (inheritance of :dudir:`image`)
-directives.  E.g. to insert a figure with a scaleable image format use SVG
+directives.  E.g. to insert a figure with a scalable image format use SVG
 (:ref:`svg image example`):
 
 .. code:: reST
@@ -1185,7 +1187,7 @@ and *targets* (e.g. a ref to :ref:`row 2 of table's body <row body 2>`).
         - cell 4.4
 
       * - row 5
-        - cell 5.1 with automatic span to rigth end
+        - cell 5.1 with automatic span to right end
 
       * - row 6
         - cell 6.1
@@ -1237,7 +1239,7 @@ and *targets* (e.g. a ref to :ref:`row 2 of table's body <row body 2>`).
         - cell 4.4
 
       * - row 5
-        - cell 5.1 with automatic span to rigth end
+        - cell 5.1 with automatic span to right end
 
       * - row 6
         - cell 6.1
@@ -1284,7 +1286,7 @@ install` (with SearXNG modules installed).  We use this e.g. to build chapter:
 :ref:`configured engines`.  Below the jinja directive from the
 :origin:`docs/admin/engines.rst` is shown:
 
-.. literalinclude:: ../admin/engines/configured_engines.rst
+.. literalinclude:: ../user/configured_engines.rst
    :language: reST
    :start-after: .. _configured engines:
 
