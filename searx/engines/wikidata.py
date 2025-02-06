@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# lint: pylint
-"""Wikidata
+"""This module implements the Wikidata engine.  Some implementations are shared
+from :ref:`wikipedia engine`.
+
 """
 # pylint: disable=missing-class-docstring
 
+from typing import TYPE_CHECKING
 from hashlib import md5
 from urllib.parse import urlencode, unquote
 from json import loads
@@ -13,12 +15,20 @@ from babel.dates import format_datetime, format_date, format_time, get_datetime_
 
 from searx.data import WIKIDATA_UNITS
 from searx.network import post, get
-from searx.utils import match_language, searx_useragent, get_string_replaces_function
+from searx.utils import searx_useragent, get_string_replaces_function
 from searx.external_urls import get_external_url, get_earth_coordinates_url, area_to_osm_zoom
-from searx.engines.wikipedia import (  # pylint: disable=unused-import
-    _fetch_supported_languages,
-    supported_languages_url,
+from searx.engines.wikipedia import (
+    fetch_wikimedia_traits,
+    get_wiki_params,
 )
+from searx.enginelib.traits import EngineTraits
+
+if TYPE_CHECKING:
+    import logging
+
+    logger: logging.Logger
+
+traits: EngineTraits
 
 # about
 about = {
@@ -29,6 +39,12 @@ about = {
     "require_api_key": False,
     "results": 'JSON',
 }
+
+display_type = ["infobox"]
+"""A list of display types composed from ``infobox`` and ``list``.  The latter
+one will add a hit to the result list.  The first one will show a hit in the
+info box.  Both values can be set, or one of the two can be set."""
+
 
 # SPARQL
 SPARQL_ENDPOINT_URL = 'https://query.wikidata.org/sparql'
@@ -44,13 +60,16 @@ WIKIDATA_PROPERTIES = {
     'P2002': 'Twitter',
     'P2013': 'Facebook',
     'P2003': 'Instagram',
+    'P4033': 'Mastodon',
+    'P11947': 'Lemmy',
+    'P12622': 'PeerTube',
 }
 
 # SERVICE wikibase:mwapi : https://www.mediawiki.org/wiki/Wikidata_Query_Service/User_Manual/MWAPI
 # SERVICE wikibase:label: https://en.wikibooks.org/wiki/SPARQL/SERVICE_-_Label#Manual_Label_SERVICE
 # https://en.wikibooks.org/wiki/SPARQL/WIKIDATA_Precision,_Units_and_Coordinates
 # https://www.mediawiki.org/wiki/Wikibase/Indexing/RDF_Dump_Format#Data_model
-# optmization:
+# optimization:
 # * https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/query_optimization
 # * https://github.com/blazegraph/database/wiki/QueryHints
 QUERY_TEMPLATE = """
@@ -154,33 +173,31 @@ def send_wikidata_query(query, method='GET'):
 
 
 def request(query, params):
-    language = params['language'].split('-')[0]
-    if language == 'all':
-        language = 'en'
-    else:
-        language = match_language(params['language'], supported_languages, language_aliases).split('-')[0]
 
-    query, attributes = get_query(query, language)
+    eng_tag, _wiki_netloc = get_wiki_params(params['searxng_locale'], traits)
+    query, attributes = get_query(query, eng_tag)
+    logger.debug("request --> language %s // len(attributes): %s", eng_tag, len(attributes))
 
     params['method'] = 'POST'
     params['url'] = SPARQL_ENDPOINT_URL
     params['data'] = {'query': query}
     params['headers'] = get_headers()
-
-    params['language'] = language
+    params['language'] = eng_tag
     params['attributes'] = attributes
+
     return params
 
 
 def response(resp):
+
     results = []
     jsonresponse = loads(resp.content.decode())
 
-    language = resp.search_params['language'].lower()
+    language = resp.search_params['language']
     attributes = resp.search_params['attributes']
+    logger.debug("request --> language %s // len(attributes): %s", language, len(attributes))
 
     seen_entities = set()
-
     for result in jsonresponse.get('results', {}).get('bindings', []):
         attribute_result = {key: value['value'] for key, value in result.items()}
         entity_url = attribute_result['item']
@@ -259,8 +276,9 @@ def get_results(attribute_result, attributes, language):
                 for url in value.split(', '):
                     infobox_urls.append({'title': attribute.get_label(language), 'url': url, **attribute.kwargs})
                     # "normal" results (not infobox) include official website and Wikipedia links.
-                    if attribute.kwargs.get('official') or attribute_type == WDArticle:
-                        results.append({'title': infobox_title, 'url': url})
+                    if "list" in display_type and (attribute.kwargs.get('official') or attribute_type == WDArticle):
+                        results.append({'title': infobox_title, 'url': url, "content": infobox_content})
+
                     # update the infobox_id with the wikipedia URL
                     # first the local wikipedia URL, and as fallback the english wikipedia URL
                     if attribute_type == WDArticle and (
@@ -278,7 +296,7 @@ def get_results(attribute_result, attributes, language):
             elif attribute_type == WDGeoAttribute:
                 # geocoordinate link
                 # use the area to get the OSM zoom
-                # Note: ignre the unit (must be km² otherwise the calculation is wrong)
+                # Note: ignore the unit (must be km² otherwise the calculation is wrong)
                 # Should use normalized value p:P2046/psn:P2046/wikibase:quantityAmount
                 area = attribute_result.get('P2046')
                 osm_zoom = area_to_osm_zoom(area) if area else 19
@@ -296,9 +314,15 @@ def get_results(attribute_result, attributes, language):
     # add the wikidata URL at the end
     infobox_urls.append({'title': 'Wikidata', 'url': attribute_result['item']})
 
-    if img_src is None and len(infobox_attributes) == 0 and len(infobox_urls) == 1 and len(infobox_content) == 0:
+    if (
+        "list" in display_type
+        and img_src is None
+        and len(infobox_attributes) == 0
+        and len(infobox_urls) == 1
+        and len(infobox_content) == 0
+    ):
         results.append({'url': infobox_urls[0]['url'], 'title': infobox_title, 'content': infobox_content})
-    else:
+    elif "infobox" in display_type:
         results.append(
             {
                 'infobox': infobox_title,
@@ -342,8 +366,8 @@ def get_attributes(language):
     def add_label(name):
         attributes.append(WDLabelAttribute(name))
 
-    def add_url(name, url_id=None, **kwargs):
-        attributes.append(WDURLAttribute(name, url_id, kwargs))
+    def add_url(name, url_id=None, url_path_prefix=None, **kwargs):
+        attributes.append(WDURLAttribute(name, url_id, url_path_prefix, kwargs))
 
     def add_image(name, url_id=None, priority=1):
         attributes.append(WDImageAttribute(name, url_id, priority))
@@ -386,7 +410,7 @@ def get_attributes(language):
     add_amount('P2046')  # area
     add_amount('P281')  # postal code
     add_label('P38')  # currency
-    add_amount('P2048')  # heigth (building)
+    add_amount('P2048')  # height (building)
 
     # Media
     for p in [
@@ -454,6 +478,11 @@ def get_attributes(language):
     add_url('P2002', url_id='twitter_profile')
     add_url('P2013', url_id='facebook_profile')
     add_url('P2003', url_id='instagram_profile')
+
+    # Fediverse
+    add_url('P4033', url_path_prefix='/@')  # Mastodon user
+    add_url('P11947', url_path_prefix='/c/')  # Lemmy community
+    add_url('P12622', url_path_prefix='/c/')  # PeerTube channel
 
     # Map
     attributes.append(WDGeoAttribute('P625'))
@@ -571,22 +600,50 @@ class WDURLAttribute(WDAttribute):
 
     HTTP_WIKIMEDIA_IMAGE = 'http://commons.wikimedia.org/wiki/Special:FilePath/'
 
-    __slots__ = 'url_id', 'kwargs'
+    __slots__ = 'url_id', 'url_path_prefix', 'kwargs'
 
-    def __init__(self, name, url_id=None, kwargs=None):
+    def __init__(self, name, url_id=None, url_path_prefix=None, kwargs=None):
+        """
+        :param url_id: ID matching one key in ``external_urls.json`` for
+            converting IDs to full URLs.
+
+        :param url_path_prefix: Path prefix if the values are of format
+            ``account@domain``.  If provided, value are rewritten to
+            ``https://<domain><url_path_prefix><account>``.  For example::
+
+              WDURLAttribute('P4033', url_path_prefix='/@')
+
+            Adds Property `P4033 <https://www.wikidata.org/wiki/Property:P4033>`_
+            to the wikidata query.  This field might return for example
+            ``libreoffice@fosstodon.org`` and the URL built from this is then:
+
+            - account: ``libreoffice``
+            - domain: ``fosstodon.org``
+            - result url: https://fosstodon.org/@libreoffice
+        """
+
         super().__init__(name)
         self.url_id = url_id
+        self.url_path_prefix = url_path_prefix
         self.kwargs = kwargs
 
     def get_str(self, result, language):
         value = result.get(self.name + 's')
-        if self.url_id and value is not None and value != '':
-            value = value.split(',')[0]
+        if not value:
+            return None
+
+        value = value.split(',')[0]
+        if self.url_id:
             url_id = self.url_id
             if value.startswith(WDURLAttribute.HTTP_WIKIMEDIA_IMAGE):
                 value = value[len(WDURLAttribute.HTTP_WIKIMEDIA_IMAGE) :]
                 url_id = 'wikimedia_image'
             return get_external_url(url_id, value)
+
+        if self.url_path_prefix:
+            [account, domain] = value.split('@', 1)
+            return f"https://{domain}{self.url_path_prefix}{account}"
+
         return value
 
 
@@ -741,7 +798,8 @@ def debug_explain_wikidata_query(query, method='GET'):
 
 def init(engine_settings=None):  # pylint: disable=unused-argument
     # WIKIDATA_PROPERTIES : add unit symbols
-    WIKIDATA_PROPERTIES.update(WIKIDATA_UNITS)
+    for k, v in WIKIDATA_UNITS.items():
+        WIKIDATA_PROPERTIES[k] = v['symbol']
 
     # WIKIDATA_PROPERTIES : add property labels
     wikidata_property_names = []
@@ -756,3 +814,19 @@ def init(engine_settings=None):  # pylint: disable=unused-argument
         lang = result['name']['xml:lang']
         entity_id = result['item']['value'].replace('http://www.wikidata.org/entity/', '')
         WIKIDATA_PROPERTIES[(entity_id, lang)] = name.capitalize()
+
+
+def fetch_traits(engine_traits: EngineTraits):
+    """Uses languages evaluated from :py:obj:`wikipedia.fetch_wikimedia_traits
+    <searx.engines.wikipedia.fetch_wikimedia_traits>` and removes
+
+    - ``traits.custom['wiki_netloc']``: wikidata does not have net-locations for
+      the languages and the list of all
+
+    - ``traits.custom['WIKIPEDIA_LANGUAGES']``: not used in the wikipedia engine
+
+    """
+
+    fetch_wikimedia_traits(engine_traits)
+    engine_traits.custom['wiki_netloc'] = {}
+    engine_traits.custom['WIKIPEDIA_LANGUAGES'] = []

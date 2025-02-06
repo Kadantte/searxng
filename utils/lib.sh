@@ -194,8 +194,9 @@ wait_key(){
     [[ -n $FORCE_TIMEOUT ]] && _t=$FORCE_TIMEOUT
     [[ -n $_t ]] && _t="-t $_t"
     printf "$msg"
+    # shellcheck disable=SC2229
     # shellcheck disable=SC2086
-    read -r -s -n1 $_t
+    read -r -s -n1 $_t || true
     echo
     clean_stdin
 }
@@ -227,7 +228,7 @@ ask_yn() {
     while true; do
         clean_stdin
         printf "$1 ${choice} "
-        # shellcheck disable=SC2086
+        # shellcheck disable=SC2086,SC2229
         read -r -n1 $_t
         if [[ -z $REPLY ]]; then
             printf "$default\n"; break
@@ -261,7 +262,7 @@ tee_stderr () {
     if [[ -n $1 ]] ; then _t="$1"; fi
 
     (while read -r line; do
-         # shellcheck disable=SC2086
+         # shellcheck disable=SC2086,SC2229
          sleep $_t
          echo -e "$line" >&2
          echo "$line"
@@ -367,7 +368,7 @@ choose_one() {
         printf "$1 [${_BGreen}$default${_creset}] "
 
         if (( 10 > max )); then
-            # shellcheck disable=SC2086
+            # shellcheck disable=SC2086,SC2229
             read -r -n1 $_t
         else
             # shellcheck disable=SC2086,SC2229
@@ -600,7 +601,7 @@ pyenv.OK() {
     fi
 
     if [ ! -f "${PY_ENV}/requirements.sha256" ] \
-        || ! sha256sum --check --status <"${PY_ENV}/requirements.sha256" 2>/dev/null; then
+        || ! sha256sum -c "${PY_ENV}/requirements.sha256" > /dev/null 2>&1; then
         build_msg PYENV "[virtualenv] requirements.sha256 failed"
         sed 's/^/          [virtualenv] - /' <"${PY_ENV}/requirements.sha256"
         return 1
@@ -662,8 +663,8 @@ pyenv.install() {
             pyenv
         fi
         for i in ${PYOBJECTS}; do
-    	    build_msg PYENV "[install] pip install -e '$i${PY_SETUP_EXTRAS}'"
-    	    "${PY_ENV_BIN}/python" -m pip install -e "$i${PY_SETUP_EXTRAS}"
+    	    build_msg PYENV "[install] pip install --use-pep517 --no-build-isolation -e '$i${PY_SETUP_EXTRAS}'"
+    	    "${PY_ENV_BIN}/python" -m pip install --use-pep517 --no-build-isolation -e "$i${PY_SETUP_EXTRAS}"
         done
     fi
     pyenv.install.OK
@@ -708,6 +709,7 @@ pyenv.uninstall() {
 	pyenv.cmd python setup.py develop --uninstall 2>&1 \
             | prefix_stdout "${_Blue}PYENV     ${_creset}[pyenv.uninstall] "
     else
+        # shellcheck disable=SC2086
 	pyenv.cmd python -m pip uninstall --yes ${PYOBJECTS} 2>&1 \
             | prefix_stdout "${_Blue}PYENV     ${_creset}[pyenv.uninstall] "
     fi
@@ -770,7 +772,7 @@ docs.clean() {
 
 docs.prebuild() {
     # Dummy function to run some actions before sphinx-doc build gets started.
-    # This finction needs to be overwritten by the application script.
+    # This function needs to be overwritten by the application script.
     true
     dump_return $?
 }
@@ -956,7 +958,6 @@ nginx_distro_setup() {
             ;;
     esac
 }
-nginx_distro_setup
 
 install_nginx(){
     info_msg "installing nginx ..."
@@ -1011,8 +1012,8 @@ nginx_install_app() {
 
 nginx_include_apps_enabled() {
 
-    # Add the *NGINX_APPS_ENABLED* infrastruture to a nginx server block.  Such
-    # infrastruture is already known from fedora and centos, including apps (location
+    # Add the *NGINX_APPS_ENABLED* infrastructure to a nginx server block.  Such
+    # infrastructure is already known from fedora and centos, including apps (location
     # directives) from the /etc/nginx/default.d folder into the *default* nginx
     # server.
 
@@ -1027,7 +1028,7 @@ nginx_include_apps_enabled() {
     local include_directive="include ${NGINX_APPS_ENABLED}/*.conf;"
     local include_directive_re="^\s*include ${NGINX_APPS_ENABLED}/\*\.conf;"
 
-    info_msg "checking existence: '${include_directive}' in file  ${server_conf}"
+    info_msg "checking existence: '${include_directive}' in file ${server_conf}"
     if grep "${include_directive_re}" "${server_conf}"; then
         info_msg "OK, already exists."
         return
@@ -1064,7 +1065,7 @@ nginx_remove_app() {
     # usage:  nginx_remove_app <myapp.conf>
 
     info_msg "remove nginx app: $1"
-    nginx_dissable_app "$1"
+    nginx_disable_app "$1"
     rm -f "${NGINX_APPS_AVAILABLE}/$1"
 }
 
@@ -1081,7 +1082,7 @@ nginx_enable_app() {
     nginx_reload
 }
 
-nginx_dissable_app() {
+nginx_disable_app() {
 
     # usage:  nginx_disable_app <myapp.conf>
 
@@ -1117,15 +1118,13 @@ apache_distro_setup() {
             APACHE_SITES_AVAILABLE="/etc/httpd/sites-available"
             APACHE_SITES_ENABLED="/etc/httpd/sites-enabled"
             APACHE_MODULES="modules"
-            APACHE_PACKAGES="httpd"
+            APACHE_PACKAGES="httpd mod_ssl"
             ;;
         *)
             err_msg "$DIST_ID-$DIST_VERS: apache not yet implemented"
             ;;
     esac
 }
-
-apache_distro_setup
 
 install_apache(){
     info_msg "installing apache ..."
@@ -1193,7 +1192,7 @@ apache_remove_site() {
     # usage:  apache_remove_site <mysite.conf>
 
     info_msg "remove apache site: $1"
-    apache_dissable_site "$1"
+    apache_disable_site "$1"
     rm -f "${APACHE_SITES_AVAILABLE}/$1"
 }
 
@@ -1223,7 +1222,7 @@ apache_enable_site() {
     apache_reload
 }
 
-apache_dissable_site() {
+apache_disable_site() {
 
     # usage:  apache_disable_site <mysite.conf>
 
@@ -1249,8 +1248,6 @@ apache_dissable_site() {
 # -----
 
 uWSGI_SETUP="${uWSGI_SETUP:=/etc/uwsgi}"
-uWSGI_USER=
-uWSGI_GROUP=
 
 # How distros manage uWSGI apps is very different.  From uWSGI POV read:
 # - https://uwsgi-docs.readthedocs.io/en/latest/Management.html
@@ -1276,21 +1273,20 @@ uWSGI_distro_setup() {
             ;;
         fedora-*|centos-7)
             # systemd --> /usr/lib/systemd/system/uwsgi.service
-            # The unit file starts uWSGI in emperor mode (/etc/uwsgi.ini), see
-            # - https://uwsgi-docs.readthedocs.io/en/latest/Emperor.html
+            # Fedora runs uWSGI in emperor-tyrant mode: in Tyrant mode the
+            # Emperor will run the vassal using the UID/GID of the vassal
+            # configuration file [1] (user and group of the app .ini file).
+            # There are some quirks abbout additional POSIX groups in uWSGI
+            # 2.0.x, read at least: https://github.com/unbit/uwsgi/issues/2099
             uWSGI_APPS_AVAILABLE="${uWSGI_SETUP}/apps-available"
             uWSGI_APPS_ENABLED="${uWSGI_SETUP}.d"
             uWSGI_PACKAGES="uwsgi"
-            uWSGI_USER="uwsgi"
-            uWSGI_GROUP="uwsgi"
             ;;
         *)
             err_msg "$DIST_ID-$DIST_VERS: uWSGI not yet implemented"
             ;;
 esac
 }
-
-uWSGI_distro_setup
 
 install_uwsgi(){
     info_msg "installing uwsgi ..."
@@ -1344,30 +1340,6 @@ uWSGI_restart() {
     esac
 }
 
-uWSGI_prepare_app() {
-
-    # usage:  uWSGI_prepare_app <myapp.ini>
-
-    [[ -z $1 ]] && die_caller 42 "missing argument <myapp.ini>"
-
-    local APP="${1%.*}"
-
-    case $DIST_ID-$DIST_VERS in
-        fedora-*|centos-7)
-            # in emperor mode, the uwsgi user is the owner of the sockets
-            info_msg "prepare (uwsgi:uwsgi)  /run/uwsgi/app/${APP}"
-            mkdir -p "/run/uwsgi/app/${APP}"
-            chown -R "uwsgi:uwsgi"  "/run/uwsgi/app/${APP}"
-            ;;
-        *)
-            info_msg "prepare (${SERVICE_USER}:${SERVICE_GROUP})  /run/uwsgi/app/${APP}"
-            mkdir -p "/run/uwsgi/app/${APP}"
-            chown -R "${SERVICE_USER}:${SERVICE_GROUP}"  "/run/uwsgi/app/${APP}"
-            ;;
-    esac
-}
-
-
 uWSGI_app_available() {
     # usage:  uWSGI_app_available <myapp.ini>
     local CONF="$1"
@@ -1378,7 +1350,7 @@ uWSGI_app_available() {
 
 uWSGI_install_app() {
 
-    # usage:  uWSGI_install_app [<template option> ...] <myapp.ini>
+    # usage:  uWSGI_install_app [<template option> ...] <myapp.ini> [{owner} [{group} [{chmod}]]]
     #
     # <template option>:  see install_template
 
@@ -1390,11 +1362,10 @@ uWSGI_install_app() {
             *)  pos_args+=("$i");;
         esac
     done
-    uWSGI_prepare_app "${pos_args[1]}"
     mkdir -p "${uWSGI_APPS_AVAILABLE}"
     install_template "${template_opts[@]}" \
                      "${uWSGI_APPS_AVAILABLE}/${pos_args[1]}" \
-                     root root 644
+                     "${pos_args[2]:-root}" "${pos_args[3]:-root}" "${pos_args[4]:-644}"
     uWSGI_enable_app "${pos_args[1]}"
     uWSGI_restart "${pos_args[1]}"
     info_msg "uWSGI app: ${pos_args[1]} is installed"
@@ -1468,7 +1439,6 @@ uWSGI_enable_app() {
             mkdir -p "${uWSGI_APPS_ENABLED}"
             rm -f "${uWSGI_APPS_ENABLED}/${CONF}"
             ln -s "${uWSGI_APPS_AVAILABLE}/${CONF}" "${uWSGI_APPS_ENABLED}/${CONF}"
-            chown "${uWSGI_USER}:${uWSGI_GROUP}" "${uWSGI_APPS_ENABLED}/${CONF}"
             info_msg "enabled uWSGI app: ${CONF}"
             ;;
         *)
@@ -1514,7 +1484,7 @@ _apt_pkg_info_is_updated=0
 
 pkg_install() {
 
-    # usage: TITEL='install foobar' pkg_install foopkg barpkg
+    # usage: TITLE='install foobar' pkg_install foopkg barpkg
 
     rst_title "${TITLE:-installation of packages}" section
     echo -e "\npackage(s)::\n"
@@ -1550,7 +1520,7 @@ pkg_install() {
 
 pkg_remove() {
 
-    # usage: TITEL='remove foobar' pkg_remove foopkg barpkg
+    # usage: TITLE='remove foobar' pkg_remove foopkg barpkg
 
     rst_title "${TITLE:-remove packages}" section
     echo -e "\npackage(s)::\n"
@@ -1689,7 +1659,7 @@ lxc_init_container_env() {
     # usage: lxc_init_container_env <name>
 
     # Create a /.lxcenv file in the root folder.  Call this once after the
-    # container is inital started and before installing any boilerplate stuff.
+    # container is initial started and before installing any boilerplate stuff.
 
     info_msg "create /.lxcenv in container $1"
     cat <<EOF | lxc exec "${1}" -- bash | prefix_stdout "[${_BBlue}${1}${_creset}] "
@@ -1699,7 +1669,7 @@ EOF
 }
 
 # apt packages
-LXC_BASE_PACKAGES_debian="bash git build-essential python3 python3-venv"
+LXC_BASE_PACKAGES_debian="bash git build-essential python3 python3-venv python-is-python3"
 
 # pacman packages
 LXC_BASE_PACKAGES_arch="bash git base-devel python"
@@ -1710,13 +1680,15 @@ LXC_BASE_PACKAGES_fedora="bash git @development-tools python"
 # yum packages
 LXC_BASE_PACKAGES_centos="bash git python3"
 
-case $DIST_ID in
-    ubuntu|debian) LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_debian}" ;;
-    arch)          LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_arch}" ;;
-    fedora)        LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_fedora}" ;;
-    centos)        LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_centos}" ;;
-    *) err_msg "$DIST_ID-$DIST_VERS: pkg_install LXC_BASE_PACKAGES not yet implemented" ;;
-esac
+lxc_distro_setup() {
+    case $DIST_ID in
+        ubuntu|debian) LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_debian}" ;;
+        arch)          LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_arch}" ;;
+        fedora)        LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_fedora}" ;;
+        centos)        LXC_BASE_PACKAGES="${LXC_BASE_PACKAGES_centos}" ;;
+        *) err_msg "$DIST_ID-$DIST_VERS: pkg_install LXC_BASE_PACKAGES not yet implemented" ;;
+    esac
+}
 
 lxc_install_base_packages() {
     info_msg "install LXC_BASE_PACKAGES in container $1"
